@@ -1,0 +1,212 @@
+/* eslint-disable  func-names */
+/* eslint quote-props: ["error", "consistent"]*/
+
+'use strict';
+const Alexa = require('alexa-sdk');
+
+const APP_ID = 'amzn1.ask.skill.6dc9c117-1404-4be4-9c04-69411470b155';
+
+const SKILL_NAME = 'Read Article';
+const GET_FACT_MESSAGE = "Here's your fact: ";
+const HELP_MESSAGE = 'You can say tell me a space fact, or, you can say exit... What can I help you with?';
+const HELP_REPROMPT = 'What can I help you with?';
+const STOP_MESSAGE = 'Goodbye!';
+
+const data = [
+    'A year on Mercury is just 88 days long.',
+    'Despite being farther from the Sun, Venus experiences higher temperatures than Mercury.',
+    'Venus rotates counter-clockwise, possibly because of a collision in the past with an asteroid.',
+    'On Mars, the Sun appears about half the size as it does on Earth.',
+    'Earth is the only planet not named after a god.',
+    'Jupiter has the shortest day of all the planets.',
+    'The Milky Way galaxy will collide with the Andromeda Galaxy in about 5 billion years.',
+    'The Sun contains 99.86% of the mass in the Solar System.',
+    'The Sun is an almost perfect sphere.',
+    'A total solar eclipse can happen once every 1 to 2 years. This makes them a rare event.',
+    'Saturn radiates two and a half times more energy into space than it receives from the sun.',
+    'The temperature inside the Sun can reach 15 million degrees Celsius.',
+    'The Moon is moving approximately 3.8 cm away from our planet every year.',
+];
+
+var articlePath;
+const handlers = {
+    'LaunchRequest': function () {
+        this.emit('GetNewFactIntent');
+    },
+    'GetNewFactIntent': function () {
+        const factArr = data;
+        const factIndex = Math.floor(Math.random() * factArr.length);
+        const randomFact = factArr[factIndex];
+        var speechOutput = GET_FACT_MESSAGE + randomFact;
+
+        var self = this;
+
+        var https = require('https');
+        var options = {
+            host: 'medium.com',
+            port: 443,
+            path: '/'
+        }
+      	var request = https.request(options, function (res) {
+            var data2 = '';
+            res.on('data', function (chunk) {
+                data2 += chunk;
+                //console.log(data);
+                //self.response.speak(data);
+            });
+            res.on('end', function () {
+                //console.log(data);
+                //self.response.speak(data);
+                //self.emit(':responseReady');
+                var str ='medium.com/s/story';
+                var pos = data2.indexOf(str);
+                var str2 = '?source=';
+                var pos2 = -1;
+                var substr = "";
+                while(pos2 === -1){
+                    var test = ""+data2.substr(pos, pos + 100);
+                    console.log(test.indexOf(str2));
+                    var num = test.indexOf(str2)+ 0;
+                    if( num > -2 ) {
+                        pos2 = test.indexOf(str2)+pos;
+                        console.log("poop" );
+                        break;
+                    }
+                    data2 = data2.substr(pos+str.length, data2.length);
+                    pos = data2.indexOf(str);
+                    console.log("pos:" + pos);
+
+                }
+
+                // var str = 'medium.com/s/story';
+                // var str2 = '?source=reading_list';
+                // var pos = data2.indexOf(str);
+                // var pos2 = data2.indexOf('?source=reading_list');
+                // console.log(data2.length);
+                // if(pos2 > pos){
+                //     while(pos + 100 < pos2 && pos > -1){
+                //         console.log('pos:' + pos+'\n');
+                //         console.log('pos2:' + pos2+'\n');
+                //         console.log(data2.substring(pos, pos+30));
+                //         data2 = data2.substring(pos+str.length, pos2);
+                //         pos = data2.indexOf(str)
+    
+                //     }
+                // } else {
+                //     while(pos2 - 100 < pos && pos2 > -1){
+                //         data2 = data2.substring(pos2+str2.length, data2.length);
+                //         pos2 = data2.indexOf(str2)
+    
+                //     }
+                // }
+                 console.log('pos:' + pos+'\n');
+                 console.log('pos2:' + pos2+'\n')
+                if(pos > -1) {
+                  if(pos2 > -1){
+                    var res = data2.substring(pos, pos2);
+                  }
+                }
+                console.log(res);
+
+                var posPath = res.indexOf('/');
+                articlePath = res.substring(posPath, res.length);
+                self.emit('SayArticle');
+                                
+            });
+        });
+        request.on('error', function (e) {
+            console.log(e.message);
+            self.response.speak("error");
+            self.emit(':responseReady');
+        });
+        request.end();
+
+        // this.response.cardRenderer(SKILL_NAME, randomFact);
+        // this.response.speak(speechOutput);
+        // this.emit(':responseReady');
+    },
+    'SayArticle': function () {
+         var https = require('https');
+         var self = this;
+
+        var options = {
+            host: 'medium.com',
+            port: 443,
+            path: articlePath
+        }
+      	var request = https.request(options, function (res) {
+            var data2 = '';
+            res.on('data', function (chunk) {
+                data2 += chunk;
+                //console.log(data);
+                //self.response.speak(data);
+            });
+            res.on('end', function () {
+
+                var start = "<div class=\"section-inner sectionLayout--insetColumn\">";
+                var startPos = data2.indexOf(start)+start.length;
+                data2 = data2.substr(startPos, data2.length); 
+
+                
+                var fullstr = "";
+                var parse1 = '<';
+                var parse2 = '>'
+                var firstPos = data2.indexOf(parse1);
+                var secondPos = data2.indexOf(parse2);
+                console.log("firstPos:" + firstPos + '\n');
+                console.log("secondPos:" + secondPos + '\n');
+
+                while(secondPos > -1 && firstPos > -1){
+                    data2 = data2.substr(secondPos+parse2.length, data2.length); 
+                    firstPos = data2.indexOf(parse1);
+                    fullstr += data2.substr(0, firstPos+parse1.length-1);
+
+                    secondPos = data2.indexOf(parse2);
+                    console.log("firstPos:" + firstPos + '\n');
+                    console.log("secondPos:" + secondPos + '\n');
+                    //console.log(data2 + '\n');
+                }
+                var finalStr = fullstr.replace().replace(/—/gi," ").replace(/’/g, "").replace(/ /g,"").replace(/?/g,"").replace(/"/g,"").replace(/'/g,"").replace(/\(|\)/g,"").replace(/“/g,"").replace(/”/g,"").replace(/[`~!@#$%^&*()_|+\-=;:'"<>\{\}\[\]\\\/]/gi, '').replace(/([\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDDFF])/g, '');
+                var title = articlePath.replace().replace(/—/gi," ").replace(/’/g, "").replace(/?/g,"").replace(/"/g,"").replace(/'/g,"").replace(/\(|\)/g,"").replace(/“/g,"").replace(/”/g,"").replace(/[`~!@#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi, '');
+                
+                console.log(finalStr);
+                finalStr = finalStr.substr(0, 2000);
+            
+                // speechOutput = res;
+                // //this.response.cardRenderer(SKILL_NAME, randomFact);
+                self.response.speak(title+ " ."+finalStr);
+                self.emit(':responseReady');
+
+            });
+        });
+        request.on('error', function (e) {
+            console.log(e.message);
+            self.response.speak("error");
+            self.emit(':responseReady');
+        });
+        request.end();
+
+    },
+    'AMAZON.HelpIntent': function () {
+        const speechOutput = HELP_MESSAGE;
+        const reprompt = HELP_REPROMPT;
+
+        this.response.speak(speechOutput).listen(reprompt);
+        this.emit(':responseReady');
+    },
+    'AMAZON.CancelIntent': function () {
+        this.response.speak(STOP_MESSAGE);
+        this.emit(':responseReady');
+    },
+    'AMAZON.StopIntent': function () {
+        this.response.speak(STOP_MESSAGE);
+        this.emit(':responseReady');
+    },
+};
+
+exports.handler = function (event, context, callback) {
+    const alexa = Alexa.handler(event, context, callback);
+    alexa.APP_ID = APP_ID;
+    alexa.registerHandlers(handlers);
+    alexa.execute();
+};
